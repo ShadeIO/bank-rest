@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: remove-table-user-roles
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        onError: HALT
+        tableExists:
+          tableName: user_roles
+      changes:
+        - dropTable:
+            tableName: user_roles
+            cascadeConstraints: true
+
+  - changeSet:
+      id: drop-roles
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        onError: HALT
+        tableExists:
+          tableName: roles
+      changes:
+        - dropTable:
+            tableName: roles
+            cascadeConstraints: true

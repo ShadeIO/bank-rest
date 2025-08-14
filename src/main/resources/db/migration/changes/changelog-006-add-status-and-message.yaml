@@ -1,0 +1,81 @@
+databaseChangeLog:
+  # 5a) status (если нет) — с временным дефолтом и NOT NULL
+  - changeSet:
+      id: 5a-add-status
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists: { tableName: transactions }
+          - not:
+              columnExists:
+                tableName: transactions
+                columnName: status
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: status
+                  type: varchar(32)
+                  defaultValue: PENDING
+        - update:
+            tableName: transactions
+            columns:
+              - column:
+                  name: status
+                  value: PENDING
+            where: status IS NULL
+        - addNotNullConstraint:
+            tableName: transactions
+            columnName: status
+            columnDataType: varchar(32)
+
+  # 5b) message (если нет) — как пустую строку и NOT NULL
+  - changeSet:
+      id: 5b-add-message
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists: { tableName: transactions }
+          - not:
+              columnExists:
+                tableName: transactions
+                columnName: message
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: message
+                  type: varchar(255)
+                  defaultValue: ""
+        - update:
+            tableName: transactions
+            columns:
+              - column:
+                  name: message
+                  value: ""
+            where: message IS NULL
+        - addNotNullConstraint:
+            tableName: transactions
+            columnName: message
+            columnDataType: varchar(255)
+
+  # 5c) (опционально) убрать дефолты, если не нужны постоянно
+  - changeSet:
+      id: 5c-drop-defaults-status-message
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        tableExists: { tableName: transactions }
+      changes:
+        - dropDefaultValue:
+            tableName: transactions
+            columnName: status
+            columnDataType: varchar(32)
+        - dropDefaultValue:
+            tableName: transactions
+            columnName: message
+            columnDataType: varchar(255)

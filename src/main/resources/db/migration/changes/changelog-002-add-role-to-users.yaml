@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-user-role-column
+      author: you
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: users
+            columnName: role
+      changes:
+        # 1) добавляем колонку с TEMP nullable и default (для существующих строк)
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: role
+                  type: varchar(255)
+                  defaultValue: USER
+                  constraints:
+                    nullable: true
+
+        # 2) проставляем значение в уже существующих строках, если вдруг NULL
+        - update:
+            tableName: users
+            columns:
+              - column:
+                  name: role
+                  value: USER
+            where: role IS NULL
+
+        # 3) фиксируем ограничение NOT NULL
+        - addNotNullConstraint:
+            tableName: users
+            columnName: role
+            columnDataType: varchar(255)
+
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: role

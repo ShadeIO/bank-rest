@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 6a-add-owner-id
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists:
+              tableName: transactions
+          - not:
+              columnExists:
+                tableName: transactions
+                columnName: owner_id
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: owner_id
+                  type: UUID
+        - addForeignKeyConstraint:
+            baseTableName: transactions
+            baseColumnNames: owner_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_transactions_owner

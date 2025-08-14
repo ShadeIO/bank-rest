@@ -1,0 +1,47 @@
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+out/
+
+# ---- Java / Maven ----
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven build helper files
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Test reports / coverage
+surefire-reports/
+failsafe-reports/
+jacoco.exec
+coverage/
+
+# ---- Spring / Logs ----
+logs/
+*.log
+*.out
+hs_err_pid*
+replay_pid*.log
+
+# ---- Docker / Compose ----
+# локальные override-файлы
+docker-compose.override.yml
+# контейнерные pid/lock файлы
+*.pid
+
+# ---- Env / Secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Misc ----
+*.orig
+*.rej

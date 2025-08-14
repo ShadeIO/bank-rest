@@ -1,0 +1,62 @@
+databaseChangeLog:
+  # 6a) добавить created_at, если его нет
+  - changeSet:
+      id: 6a-add-created-at-if-missing
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists:
+              tableName: transactions
+          - not:
+              columnExists:
+                tableName: transactions
+                columnName: created_at
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addNotNullConstraint:
+            tableName: transactions
+            columnName: created_at
+            columnDataType: timestamp
+
+  # 6b) если есть столбец timestamp — скопировать из него значения в created_at
+  - changeSet:
+      id: 6b-backfill-created-at-from-timestamp
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists:
+              tableName: transactions
+          - columnExists:
+              tableName: transactions
+              columnName: timestamp
+      changes:
+        - sql:
+            sql: >
+              UPDATE transactions
+              SET created_at = "timestamp"
+              WHERE created_at IS NULL;
+
+  # 6c) если есть столбец timestamp — удалить его
+  - changeSet:
+      id: 6c-drop-legacy-timestamp
+      author: dev
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists:
+              tableName: transactions
+          - columnExists:
+              tableName: transactions
+              columnName: timestamp
+      changes:
+        - dropColumn:
+            tableName: transactions
+            columnName: timestamp

@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-pan-hash-col
+      author: you
+      changes:
+        - addColumn:
+            tableName: cards
+            columns:
+              - column:
+                  name: pan_hash
+                  type: varchar(88)
+                  remarks: "Deterministic HMAC-SHA256 of PAN (base64)"
+        - modifyDataType:
+            tableName: cards
+            columnName: encrypted_card_number
+            newDataType: varchar(512)
+
+  - changeSet:
+      id: unique-index-pan-hash
+      author: you
+      preConditions:
+        - dbms:
+            type: postgresql
+      changes:
+        - createIndex:
+            tableName: cards
+            indexName: ux_cards_pan_hash
+            unique: true
+            columns:
+              - column:
+                  name: pan_hash
+            where: "pan_hash IS NOT NULL"

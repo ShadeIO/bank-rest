@@ -1,0 +1,78 @@
+logging:
+  level:
+    liquibase: INFO
+    org.hibernate: INFO
+    org.springframework.orm.jpa: INFO
+    org.springframework.security: INFO
+
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: bankcards-api
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/migration/changelog-001-init.yaml
+
+  jackson:
+    serialization:
+      INDENT_OUTPUT: true
+
+# 🔐 JWT security config
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-jwt-secret-and-very-long-key-change-me}
+    expiration: 3600000 # 1 час в мс
+
+encrypt:
+  secret: ${ENCRYPT_SECRET:dev-encrypt-secret-and-very-long-key-change-me}
+
+# 📘 Swagger UI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+# ====== профиль: local (по умолчанию) ======
+# Используется при запуске из IDE/консоли, когда БД на хосте
+---
+spring:
+  config:
+    activate:
+       on-profile: local
+
+  datasource:
+     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${DB_PORT_HOST:5432}/${POSTGRES_DB:bankcards}}
+     username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:postgres}}
+     password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:change_me}}
+     driver-class-name: org.postgresql.Driver
+
+# ====== профиль: docker ======
+# Используется внутри контейнера. В docker-compose мы уже ставим SPRING_PROFILES_ACTIVE=docker.
+# Значения можно переопределить через переменные окружения, которые мы задали в compose.
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/${POSTGRES_DB:bankcards}}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:change_me}}
+    driver-class-name: org.postgresql.Driver

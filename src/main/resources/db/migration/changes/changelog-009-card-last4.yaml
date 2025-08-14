@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-1-add-last4
+      author: you
+      changes:
+        - addColumn:
+            tableName: cards
+            columns:
+              - column:
+                  name: last4
+                  type: varchar(4)
+                  remarks: "Last 4 digits for search"
+        - createIndex:
+            tableName: cards
+            indexName: ix_cards_owner_last4
+            columns:
+              - column: { name: owner_id }
+              - column: { name: last4 }

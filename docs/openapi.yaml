@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+  title: Bank Cards REST API
+  version: "1.0.0"
+  description: >
+    API для регистрации пользователей, выпуска и управления банковскими картами,
+    а также переводов. Аутентификация — JWT Bearer.
+servers:
+  - url: http://localhost:8080
+    description: Local / Docker host
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, example: alice }
+        password: { type: string, example: p@ssw0rd }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, example: alice }
+        password: { type: string, example: p@ssw0rd }
+    JwtResponse:
+      type: object
+      properties:
+        token: { type: string, description: JWT access token }
+    UserDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        role: { type: string, enum: [ADMIN, USER] }
+    CardDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ownerId: { type: string, format: uuid }
+        maskedNumber: { type: string, example: '**** **** **** 1234' }
+        expiryDate: { type: string, format: date }
+        status: { $ref: '#/components/schemas/CardStatus' }
+        balance: { type: number, format: double, example: 100.00 }
+    CreateCardRequest:
+      type: object
+      required: [encryptedCardNumber]
+      properties:
+        encryptedCardNumber: { type: string, description: 'Зашифрованный номер карты (16 цифр в шифре)', example: '0123456789012345' }
+        expiryDate: { type: string, format: date, example: '2030-12-31' }
+    TopUpRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: number, format: double, example: 50.00 }
+    TransactionDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        owner: { type: string, format: uuid }
+        fromMasked: { type: string, example: '**** **** **** 1234' }
+        toMasked: { type: string, example: '**** **** **** 5678' }
+        amount: { type: number, format: double }
+        status: { $ref: '#/components/schemas/TransactionStatus' }
+        createdAt: { type: string, format: date-time }
+        message: { type: string }
+    CardStatus:
+      type: string
+      enum: [ACTIVE, BLOCKED, BLOCK_REQUESTED]
+    TransactionStatus:
+      type: string
+      enum: [PENDING, SUCCESS, FAILED]
+
+paths:
+  /api/auth/login:
+    post:
+      summary: Логин
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JwtResponse' }
+
+  /api/auth/me:
+    get:
+      summary: Сведения о текущем пользователе
+      tags: [Auth]
+      security: []  # доступно без токена
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated: { type: boolean }
+                  name: { type: string, nullable: true }
+                  authorities:
+                    type: array
+                    items: { type: string }
+
+  /api/users/register:
+    post:
+      summary: Регистрация пользователя
+      tags: [Users]
+      security: []  # permitAll
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDto' }
+        '200':
+          description: ОК (на случай, если сервис возвращает 200)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDto' }
+
+  /api/users/register-admin:
+    post:
+      summary: Регистрация администратора
+      tags: [Users]
+      security: []  # permitAll (или ограничение по ключу)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDto' }
+
+  /api/users:
+    get:
+      summary: Список пользователей (админ — все, пользователь — только сам)
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserDto' }
+
+  /api/users/{userId}:
+    get:
+      summary: Получить пользователя по ID
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDto' }
+        '404':
+          description: Не найден
+
+  /api/users/by-username/{username}:
+    get:
+      summary: Получить пользователя по username
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDto' }
+        '404':
+          description: Не найден
+
+  /api/cards/my:
+    get:
+      summary: Мои карты (пагинация)
+      tags: [Cards]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 1, maximum: 100 }
+        - in: query
+          name: sort
+          schema: { type: string, example: 'expiryDate,asc' }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items: { $ref: '#/components/schemas/CardDto' }
+                  totalElements: { type: integer }
+                  totalPages: { type: integer }
+                  size: { type: integer }
+                  number: { type: integer }
+
+  /api/cards/{cardId}:
+    get:
+      summary: Получить карту по ID
+      tags: [Cards]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CardDto' }
+        '404':
+          description: Не найден
+
+  /api/cards/user/{userId}:
+    get:
+      summary: Карты пользователя
+      tags: [Cards]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CardDto' }
+
+    post:
+      summary: Выпустить карту пользователю
+      tags: [Cards]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCardRequest' }
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CardDto' }
+
+  /api/cards/{cardId}/request-block:
+    post:
+      summary: Запросить блокировку карты
+      tags: [Cards]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Принято без тела
+
+  /api/cards/{cardId}/top-up:
+    post:
+      summary: Пополнить карту
+      tags: [Cards]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TopUpRequest' }
+      responses:
+        '204':
+          description: Баланс пополнен
+
+  /api/transfers/card/{cardId}:
+    get:
+      summary: История переводов по карте
+      tags: [Transfers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TransactionDto' }
+
+  /api/transfers/user/{userId}:
+    get:
+      summary: История переводов пользователя
+      tags: [Transfers]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: ОК
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TransactionDto' }

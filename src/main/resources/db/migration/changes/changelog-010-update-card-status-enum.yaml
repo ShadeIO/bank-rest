@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: update-card-status-enum
+      author: dev
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE cards DROP CONSTRAINT IF EXISTS cards_status_check;
+              ALTER TABLE cards
+              ADD CONSTRAINT cards_status_check
+              CHECK (status::text = ANY (ARRAY['ACTIVE','BLOCKED','EXPIRED','BLOCK_REQUESTED']::text[]));
+              ALTER TABLE cards ALTER COLUMN status SET DEFAULT 'ACTIVE';
